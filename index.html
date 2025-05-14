@@ -1,557 +1,137 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image to Text Converter - Advanced UI & UX</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
-    <style>
-        /* Custom font - Inter */
-        body {
-            font-family: 'Inter', sans-serif;
-            scroll-behavior: smooth;
-        }
-        /* Loading spinner style */
-        .loader {
-            border: 5px solid #e5e7eb; /* Tailwind gray-200 */
-            border-top: 5px solid #3b82f6; /* Tailwind blue-500 */
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 20px auto; 
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* Enhanced Button styles */
-        .action-button {
-            @apply bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-3 px-6 sm:py-3.5 sm:px-8 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 ease-in-out transform hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:shadow-md focus:outline-none focus:ring-4 focus:ring-blue-300;
-        }
-        .secondary-button { 
-            @apply border-2 border-indigo-500 text-indigo-600 hover:bg-indigo-500 hover:text-white font-semibold py-2.5 px-5 sm:py-3 sm:px-7 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 ease-in-out transform hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:bg-transparent disabled:text-indigo-300 disabled:border-indigo-300 focus:outline-none focus:ring-4 focus:ring-indigo-200;
-        }
-        .warning-button { 
-            @apply border-2 border-amber-500 text-amber-600 hover:bg-amber-500 hover:text-white font-semibold py-2.5 px-5 sm:py-3 sm:px-7 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 ease-in-out transform hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:bg-transparent disabled:text-amber-300 disabled:border-amber-300 focus:outline-none focus:ring-4 focus:ring-amber-200;
-        }
-
-        /* Message box style */
-        .message-box {
-            @apply fixed top-4 right-4 sm:top-6 sm:right-6 bg-green-600 text-white p-3 sm:p-4 rounded-lg shadow-xl transition-all duration-300 ease-in-out z-50 transform translate-x-full max-w-xs sm:max-w-sm;
-        }
-        .message-box.show {
-            @apply translate-x-0;
-        }
-        .message-box.error {
-            @apply bg-red-600;
-        }
-        .message-box.info { 
-            @apply bg-sky-500;
-        }
-
-        /* Image preview enhancements */
-        #imagePreviewGrid {
-            display: grid;
-            /* Adjusted minmax for potentially smaller mobile screens, but 120px is a good minimum touch target */
-            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); 
-            gap: 1rem; /* Tailwind's gap-4 */
-            padding-top: 1rem;
-        }
-        .image-card {
-            @apply relative bg-white border border-gray-200 rounded-xl p-3 shadow-md hover:shadow-lg flex flex-col items-center text-center;
-            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-        }
-        .image-card:hover {
-            transform: translateY(-3px);
-        }
-        .image-card img.thumbnail-preview {
-            height: 80px; /* Slightly smaller for tighter grid on mobile */
-            width: 100%;
-            max-width: 100px;
-            border-radius: 0.375rem; 
-            object-fit: cover;
-            margin-bottom: 0.5rem; /* Tailwind's mb-2 */
-            border: 1px solid #e5e7eb; 
-        }
-        .image-card .filename {
-            @apply text-xs text-gray-700 font-medium truncate w-full;
-            max-width: 100px;
-        }
-        .image-card .file-status { 
-            @apply text-xs text-gray-600 mt-1 flex items-center justify-center space-x-1.5;
-        }
-        .image-card .status-dot {
-            @apply w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full inline-block align-middle;
-        }
-        .image-card .status-text {
-            @apply leading-tight text-xs;
-        }
-        .remove-image-btn {
-            @apply absolute top-1.5 right-1.5 bg-red-500 text-white rounded-full w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center hover:bg-red-700 transition-colors shadow focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-75 z-10;
-        }
-
-        /* Progress Bar */
-        #overallProgressBarContainer {
-            @apply w-full bg-gray-200 rounded-full h-2.5 sm:h-3 mb-4 sm:mb-6 overflow-hidden shadow-inner;
-        }
-        #overallProgressBar {
-            @apply bg-gradient-to-r from-blue-500 to-blue-600 h-full rounded-full transition-all duration-500 ease-out;
-        }
-        /* Tooltip for image quality note */
-        .tooltip {
-            @apply relative inline-block;
-        }
-        .tooltip .tooltiptext {
-            @apply invisible absolute w-56 sm:w-64 bg-gray-800 text-white text-xs text-center rounded-lg py-2 px-3 z-10 bottom-full left-1/2 transform -translate-x-1/2 mb-2 opacity-0 transition-opacity duration-300 shadow-lg;
-        }
-        .tooltip:hover .tooltiptext {
-            @apply visible opacity-100;
-        }
-        /* Extracted Text Area */
-        #extractedText {
-            @apply w-full p-3 sm:p-4 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-y bg-gray-50 hover:border-gray-400 focus:shadow-lg transition-shadow duration-200;
-        }
-
-        /* Grouped buttons container */
-        .action-buttons-group {
-            @apply flex flex-col sm:flex-row justify-center items-center gap-3 sm:gap-4 mt-4;
-        }
-    </style>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Multi-Image Text Extractor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-start py-6 sm:py-8 px-3 sm:px-4 md:px-6">
+<body class="bg-gradient-to-tr from-blue-100 via-white to-blue-50 min-h-screen flex justify-center items-center px-4 py-8">
 
-    <div class="bg-white p-4 sm:p-6 md:p-10 rounded-xl shadow-2xl w-full max-w-4xl border-t-4 border-blue-500">
-        <header class="mb-6 sm:mb-10 text-center">
-            <h1 class="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-800">Multi-Image Text Extractor</h1>
-            <p class="text-gray-600 mt-2 sm:mt-3 text-xs sm:text-sm md:text-base">
-                Upload up to 5 images. For best results, use clear, high-resolution images.
-                <span class="tooltip">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 sm:w-5 sm:h-5 inline-block text-blue-600 cursor-help align-middle">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z" />
-                    </svg>
-                    <span class="tooltiptext">OCR accuracy is highest with well-lit, clear images with standard fonts. Complex backgrounds or handwritten text may yield lower accuracy. Ensure good contrast.</span>
-                </span>
-            </p>
-        </header>
+  <div class="bg-white shadow-2xl rounded-xl p-8 max-w-3xl w-full border-t-4 border-blue-600">
+    <header class="mb-8 text-center">
+      <h1 class="text-4xl sm:text-5xl font-extrabold text-gray-900">Multi-Image Text Extractor</h1>
+      <p class="mt-3 text-base sm:text-lg text-gray-600">Extract text from images in seconds – powered by Tesseract.js</p>
+    </header>
 
-        <main>
-            <div class="mb-6 sm:mb-8">
-                <label for="imageUpload" class="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
-                    Select Images (Max 5, up to 5MB each):
-                </label>
-                <input type="file" id="imageUpload" accept="image/png, image/jpeg, image/bmp, image/webp, image/tiff" multiple
-                       class="block w-full text-xs sm:text-sm text-gray-600
-                              file:mr-3 file:py-2.5 file:px-4 sm:file:mr-4 sm:file:py-3 sm:file:px-5
-                              file:rounded-lg file:border-0
-                              file:text-xs sm:file:text-sm file:font-semibold
-                              file:bg-blue-100 file:text-blue-700
-                              hover:file:bg-blue-200 active:file:bg-blue-300
-                              cursor-pointer border border-gray-300 rounded-lg p-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-150">
-                <p id="fileCountStatus" class="text-xs text-gray-500 mt-1.5 sm:mt-2"></p>
-            </div>
-
-            <div id="imagePreviewContainer" class="mb-6 sm:mb-8 bg-slate-50 p-3 sm:p-5 rounded-lg border border-dashed border-gray-300 min-h-[150px] sm:min-h-[170px] shadow-inner">
-                <div id="imagePreviewGrid">
-                    </div>
-                <p id="previewPlaceholder" class="text-gray-500 text-center text-sm sm:text-base py-8 sm:py-10">Image previews will appear here</p>
-            </div>
-
-            <div id="overallProgressBarContainer" class="hidden mt-2 mb-4 sm:mb-6">
-                <div id="overallProgressBar"></div>
-            </div>
-            <div class="mb-6 sm:mb-8 text-center">
-                <button id="convertToTextBtn" class="action-button w-full sm:w-auto" disabled>
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 sm:w-6 sm:h-6 inline-block mr-2 sm:mr-2.5 -ml-1 align-middle">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
-                    </svg>
-                    <span id="convertToTextBtnText" class="text-sm sm:text-base">Convert to Text</span>
-                </button>
-            </div>
-
-            <div id="statusDisplay" class="mb-4 sm:mb-6 text-center text-gray-700 font-medium min-h-[1.25em] sm:min-h-[1.5em] text-sm sm:text-base"></div>
-            <div id="loader" class="loader hidden"></div>
-
-            <div class="mb-6 sm:mb-8">
-                <label for="extractedText" class="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
-                    Extracted Text:
-                </label>
-                <textarea id="extractedText" rows="12" sm:rows="15" md:rows="18"
-                          placeholder="Text from images will appear here, with filenames as headings..." readonly></textarea>
-            </div>
-
-            <div class="action-buttons-group">
-                <button id="copyTextBtn" class="secondary-button w-full sm:w-auto text-sm sm:text-base" disabled>
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 sm:w-5 sm:h-5 inline-block mr-2 sm:mr-2.5 -ml-1 align-middle">
-                       <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m9.75 9.25c.621 0 1.125-.504 1.125-1.125v-6.75a3.375 3.375 0 0 0-3.375-3.375H10.5m11.25 6.75a2.25 2.25 0 0 0-2.25-2.25H10.5a2.25 2.25 0 0 0-2.25 2.25m11.25 6.75v-6.75a2.25 2.25 0 0 0-2.25-2.25H10.5a2.25 2.25 0 0 0-2.25 2.25m0 0h11.25" />
-                    </svg>
-                    <span id="copyTextBtnText">Copy All Text</span>
-                </button>
-                <button id="resetBtn" class="warning-button w-full sm:w-auto text-sm sm:text-base" disabled>
-                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 sm:w-5 sm:h-5 inline-block mr-2 sm:mr-2.5 -ml-1 align-middle">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
-                    </svg>
-                    Reset
-                </button>
-            </div>
-        </main>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm sm:text-base text-gray-700 mt-6 mb-8">
+      <div class="flex items-center gap-3"><span class="text-blue-600">✔️</span> Batch Processing (up to 5 images)</div>
+      <div class="flex items-center gap-3"><span class="text-blue-600">✔️</span> Real-Time Progress</div>
+      <div class="flex items-center gap-3"><span class="text-blue-600">✔️</span> High Accuracy OCR</div>
+      <div class="flex items-center gap-3"><span class="text-blue-600">✔️</span> Mobile-Friendly UI</div>
     </div>
 
-    <div id="messageBox" class="message-box" role="alert"></div>
+    <!-- Browse Button -->
+    <div class="mb-6">
+      <label class="block text-gray-700 font-medium mb-2">Upload Images (Max 5)</label>
+      <label class="cursor-pointer inline-block px-5 py-3 bg-blue-100 text-blue-700 border border-blue-400 rounded-lg font-medium hover:bg-blue-200 transition">
+        Browse Images
+        <input id="imageInput" type="file" accept="image/*" multiple class="hidden" />
+      </label>
+    </div>
 
-    <footer class="mt-10 sm:mt-12 mb-6 sm:mb-8 text-center text-gray-600 text-xs sm:text-sm">
-        <p>Powered by Tesseract.js</p>
-        <p class="mt-1 sm:mt-1.5">Developer: Satya, mnvdsreddy93@gmail.com</p>
-    </footer>
+    <!-- Image Preview -->
+    <div id="preview" class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+      <!-- image cards go here -->
+    </div>
 
-    <script>
-        // DOM Elements
-        const imageUpload = document.getElementById('imageUpload');
-        const imagePreviewGrid = document.getElementById('imagePreviewGrid');
-        const previewPlaceholder = document.getElementById('previewPlaceholder');
-        const convertToTextBtn = document.getElementById('convertToTextBtn');
-        const convertToTextBtnText = document.getElementById('convertToTextBtnText');
-        const extractedText = document.getElementById('extractedText');
-        const statusDisplay = document.getElementById('statusDisplay');
-        const copyTextBtn = document.getElementById('copyTextBtn');
-        const copyTextBtnText = document.getElementById('copyTextBtnText');
-        const resetBtn = document.getElementById('resetBtn');
-        const loader = document.getElementById('loader');
-        const messageBox = document.getElementById('messageBox');
-        const fileCountStatus = document.getElementById('fileCountStatus');
-        const overallProgressBarContainer = document.getElementById('overallProgressBarContainer');
-        const overallProgressBar = document.getElementById('overallProgressBar');
+    <!-- Progress Bar -->
+    <div class="w-full bg-gray-200 rounded-full h-3 shadow-inner mt-6 hidden" id="progressBarContainer">
+      <div id="progressBar" class="bg-blue-500 h-full rounded-full transition-all duration-300 ease-out" style="width: 0%;"></div>
+    </div>
 
-        const MAX_FILES = 5;
-        const MAX_FILE_SIZE_MB = 5; 
-        let selectedImageFiles = []; 
-        let currentProcessingFileName = ''; 
-        let tesseractWorker = null; 
-        let isProcessing = false; // Global flag for processing state
+    <!-- Action Buttons -->
+    <div class="flex justify-center mt-6 gap-4 flex-wrap">
+      <button id="convertBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg shadow transition-all duration-200">Convert to Text</button>
+      <button id="copyBtn" class="border border-indigo-500 text-indigo-600 hover:bg-indigo-500 hover:text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200">Copy Text</button>
+      <button id="resetBtn" class="border border-yellow-500 text-yellow-600 hover:bg-yellow-500 hover:text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200">Reset</button>
+    </div>
 
-        const originalConvertBtnText = "Convert to Text";
-        const originalCopyBtnText = "Copy All Text";
+    <!-- Output -->
+    <div class="mt-6">
+      <label class="block font-medium text-gray-700 mb-2">Extracted Text</label>
+      <textarea id="result" rows="10" readonly class="w-full border border-gray-300 p-4 rounded-lg bg-gray-50 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-y"></textarea>
+    </div>
 
-        function showMessage(message, type = 'success') {
-            messageBox.textContent = message;
-            messageBox.className = 'message-box'; 
-            messageBox.classList.add(type === 'error' ? 'error' : (type === 'info' ? 'info' : 'bg-green-600'));
-            messageBox.classList.add('show');
-            setTimeout(() => {
-                messageBox.classList.remove('show');
-            }, 3500); 
-        }
-        
-        const tesseractLogger = m => {
-            const statusText = m.status.charAt(0).toUpperCase() + m.status.slice(1);
-            if (m.status === 'recognizing text') {
-                const progress = (m.progress * 100).toFixed(0);
-                statusDisplay.textContent = `Processing ${currentProcessingFileName || 'image'}: ${statusText} ${progress}%`;
-                convertToTextBtnText.textContent = `Processing... ${progress}%`;
-                
-                if (currentProcessingFileName) {
-                    const fileIdentifier = currentProcessingFileName.replace(/[^a-zA-Z0-9]/g, '');
-                    const currentCard = document.getElementById(`card-${fileIdentifier}`);
-                    if (currentCard) {
-                        const cardStatusTextEl = currentCard.querySelector('.status-text');
-                        const cardStatusDotEl = currentCard.querySelector('.status-dot');
-                        if (cardStatusTextEl) cardStatusTextEl.textContent = `Recognizing: ${progress}%`;
-                        if (cardStatusDotEl) cardStatusDotEl.className = 'status-dot bg-yellow-400 animate-pulse'; 
-                    }
-                }
-            } else if (currentProcessingFileName) {
-                statusDisplay.textContent = `Processing ${currentProcessingFileName}: ${statusText}...`;
-                 if (m.status === 'initializing api' || m.status === 'loading language data') {
-                    convertToTextBtnText.textContent = "Initializing...";
-                }
-            } else {
-                 if (m.status !== 'initialized api' && m.status !== 'loaded language data') { // Avoid showing generic 'Initialized api'
-                    statusDisplay.textContent = `${statusText}...`;
-                }
-            }
+    <p class="mt-6 text-center text-sm text-gray-500">Built with ❤️ using Tesseract.js by Satya</p>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script>
+    const input = document.getElementById('imageInput');
+    const preview = document.getElementById('preview');
+    const convertBtn = document.getElementById('convertBtn');
+    const result = document.getElementById('result');
+    const progressBar = document.getElementById('progressBar');
+    const progressBarContainer = document.getElementById('progressBarContainer');
+    const copyBtn = document.getElementById('copyBtn');
+    const resetBtn = document.getElementById('resetBtn');
+
+    let images = [];
+
+    input.addEventListener('change', () => {
+      const files = Array.from(input.files).slice(0, 5 - images.length);
+      files.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const id = Date.now() + Math.random();
+          images.push({ file, id });
+          const div = document.createElement('div');
+          div.className = "relative bg-white border rounded-lg shadow p-2 text-center text-sm hover:scale-105 transition-transform";
+          div.id = `card-${id}`;
+          div.innerHTML = `
+            <button onclick="removeImage(${id})" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 shadow text-xs hover:bg-red-600">✕</button>
+            <img src="${reader.result}" alt="preview" class="w-full h-24 object-cover rounded mb-2" />
+            <div>${file.name}</div>
+          `;
+          preview.appendChild(div);
         };
+        reader.readAsDataURL(file);
+      });
+    });
 
-        async function getTesseractWorker() {
-            if (!tesseractWorker || tesseractWorker.killed) { 
-                isProcessing = true; // Set processing true during init
-                updateButtonAndStatusStates(); // Update buttons for init state
-                statusDisplay.textContent = 'Initializing OCR engine... This may take a moment.';
-                loader.classList.remove('hidden');
-                convertToTextBtnText.textContent = "Initializing Engine...";
-                try {
-                    tesseractWorker = await Tesseract.createWorker('eng', 1, { 
-                        logger: tesseractLogger, 
-                    });
-                } catch (err) {
-                    console.error("Failed to create Tesseract worker:", err);
-                    statusDisplay.textContent = 'OCR engine init failed. Refresh & try again.';
-                    showMessage('OCR engine initialization failed. Please refresh the page.', 'error');
-                    isProcessing = false; 
-                    loader.classList.add('hidden'); 
-                    updateButtonAndStatusStates(); // Reset button states after failure
-                    throw err; 
-                }
-                // isProcessing = false; // Worker is ready, not actively processing a file yet
-                // loader.classList.add('hidden'); // Hide loader once done
-                // updateButtonAndStatusStates(); // Update buttons now that init is done
-            }
-            return tesseractWorker;
+    window.removeImage = function(id) {
+      images = images.filter(img => img.id !== id);
+      const card = document.getElementById(`card-${id}`);
+      if (card) card.remove();
+    };
+
+    convertBtn.addEventListener('click', async () => {
+      if (images.length === 0) return;
+      result.value = '';
+      progressBar.style.width = '0%';
+      progressBarContainer.classList.remove('hidden');
+      const worker = await Tesseract.createWorker('eng', 1, {
+        logger: m => {
+          if (m.status === 'recognizing text') {
+            progressBar.style.width = `${Math.floor(m.progress * 100)}%`;
+          }
         }
+      });
 
-        function updateImageCardStatus(fileName, status, message = '') {
-            const fileIdentifier = fileName.replace(/[^a-zA-Z0-9]/g, ''); 
-            const cardId = `card-${fileIdentifier}`;
-            const card = document.getElementById(cardId);
+      for (let i = 0; i < images.length; i++) {
+        const { data: { text } } = await worker.recognize(images[i].file);
+        result.value += `--- ${images[i].file.name} ---\n${text.trim()}\n\n`;
+        progressBar.style.width = `${Math.floor(((i + 1) / images.length) * 100)}%`;
+      }
 
-            if (card) {
-                const statusDotElement = card.querySelector('.status-dot');
-                const statusTextElement = card.querySelector('.status-text');
-                let dotClasses = 'status-dot '; 
-                let statusMessageText = message || status.charAt(0).toUpperCase() + status.slice(1);
+      await worker.terminate();
+    });
 
-                switch(status) {
-                    case 'pending': dotClasses += 'bg-gray-400'; break;
-                    case 'processing': dotClasses += 'bg-yellow-400 animate-pulse'; statusMessageText = message || 'Processing...'; break;
-                    case 'done': dotClasses += 'bg-green-500'; statusMessageText = message || 'Done'; break;
-                    case 'error': dotClasses += 'bg-red-500'; statusMessageText = message || 'Error'; break;
-                    default: dotClasses += 'bg-gray-400'; 
-                }
-                if (statusDotElement) statusDotElement.className = dotClasses;
-                if (statusTextElement) statusTextElement.textContent = statusMessageText;
-            }
-        }
+    copyBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText(result.value);
+      copyBtn.innerText = "Copied!";
+      setTimeout(() => copyBtn.innerText = "Copy Text", 1500);
+    });
 
-        // Centralized function to update button states and related UI elements
-        function updateButtonAndStatusStates() {
-            const numFiles = selectedImageFiles.length;
-            const hasText = extractedText.value.trim().length > 0;
-
-            fileCountStatus.textContent = numFiles > 0 ? `${numFiles} image(s) selected.` : '';
-
-            if (numFiles === 0) {
-                previewPlaceholder.classList.remove('hidden');
-                if (!isProcessing) statusDisplay.textContent = 'Select images to begin.';
-            } else {
-                previewPlaceholder.classList.add('hidden');
-                if (!isProcessing && (statusDisplay.textContent === 'Select images to begin.' || statusDisplay.textContent === '')) {
-                     statusDisplay.textContent = 'Images ready. Click "Convert to Text".';
-                }
-            }
-            
-            convertToTextBtn.disabled = numFiles === 0 || isProcessing;
-            if (!isProcessing) {
-                 convertToTextBtnText.textContent = originalConvertBtnText;
-            }
-
-            resetBtn.disabled = (numFiles === 0 && !hasText) || isProcessing;
-            copyTextBtn.disabled = !hasText || isProcessing;
-        }
-        
-        function handleRemoveImage(fileIdentifierToRemove, fileNameToRemove) {
-            const cardToRemove = document.getElementById(`card-${fileIdentifierToRemove}`);
-            if (cardToRemove) {
-                cardToRemove.remove();
-            }
-            selectedImageFiles = selectedImageFiles.filter(f => f.name !== fileNameToRemove);
-            updateButtonAndStatusStates();
-            showMessage(`Image "${fileNameToRemove}" removed.`, 'info');
-        }
-
-        imageUpload.addEventListener('change', (event) => {
-            const files = event.target.files;
-            handleReset(false); 
-
-            if (files.length === 0) return;
-
-            let currentFiles = Array.from(files);
-            let validFilesCount = 0;
-
-            for (const file of currentFiles) {
-                if (validFilesCount >= MAX_FILES) {
-                    showMessage(`Maximum ${MAX_FILES} files allowed. Others were ignored.`, 'error');
-                    break;
-                }
-                if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-                    showMessage(`File "${file.name}" is too large (max ${MAX_FILE_SIZE_MB}MB). Skipped.`, 'error');
-                    continue; 
-                }
-                selectedImageFiles.push(file);
-                validFilesCount++;
-            }
-            
-            if (selectedImageFiles.length > 0) {
-                selectedImageFiles.forEach(file => {
-                    const reader = new FileReader();
-                    const fileIdentifier = file.name.replace(/[^a-zA-Z0-9]/g, '') + '_' + Date.now(); // Add timestamp for more uniqueness
-
-                    reader.onload = (e) => {
-                        const card = document.createElement('div');
-                        card.className = 'image-card'; 
-                        card.id = `card-${fileIdentifier}`; 
-                        
-                        const img = document.createElement('img');
-                        img.src = e.target.result;
-                        img.alt = `Preview of ${file.name}`;
-                        img.classList.add('thumbnail-preview');
-                        img.onerror = function() { 
-                            this.alt = `Preview error: ${file.name}`;
-                            this.src = `https://placehold.co/100x80/e2e8f0/94a3b8?text=Error`;
-                            updateImageCardStatus(file.name, 'error', 'Preview Error');
-                        };
-
-                        const filenameDiv = document.createElement('div');
-                        filenameDiv.classList.add('filename');
-                        filenameDiv.textContent = file.name.length > 12 ? file.name.substring(0,10) + "..." : file.name;
-                        filenameDiv.title = file.name; 
-
-                        const statusDiv = document.createElement('div');
-                        statusDiv.classList.add('file-status');
-                        const dotSpan = document.createElement('span');
-                        dotSpan.classList.add('status-dot', 'bg-gray-400'); 
-                        const textSpan = document.createElement('span');
-                        textSpan.classList.add('status-text');
-                        textSpan.textContent = 'Pending';
-                        statusDiv.appendChild(dotSpan);
-                        statusDiv.appendChild(textSpan);
-
-                        const removeBtnEl = document.createElement('button');
-                        removeBtnEl.className = 'remove-image-btn';
-                        removeBtnEl.title = 'Remove image';
-                        removeBtnEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3 h-3 sm:w-3.5 sm:h-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>`;
-                        removeBtnEl.addEventListener('click', (ev) => {
-                            ev.stopPropagation();
-                            handleRemoveImage(fileIdentifier, file.name);
-                        });
-
-                        card.appendChild(removeBtnEl);
-                        card.appendChild(img);
-                        card.appendChild(filenameDiv);
-                        card.appendChild(statusDiv);
-                        imagePreviewGrid.appendChild(card);
-                    }
-                    reader.readAsDataURL(file); 
-                });
-            }
-            updateButtonAndStatusStates(); 
-        });
-
-        convertToTextBtn.addEventListener('click', async () => {
-            if (selectedImageFiles.length === 0) {
-                showMessage('Please select image files first.', 'error');
-                return;
-            }
-            isProcessing = true;
-            updateButtonAndStatusStates();
-            loader.classList.remove('hidden'); 
-            overallProgressBarContainer.classList.remove('hidden');
-            overallProgressBar.style.width = '0%';
-            let totalProcessed = 0;
-            let anyErrorOccurred = false;
-            let accumulatedText = ""; 
-
-            try {
-                const worker = await getTesseractWorker(); 
-                if (!worker) throw new Error("Tesseract worker not available.");
-                
-                // Worker init might have hidden loader, ensure it's hidden if worker was already ready
-                loader.classList.add('hidden'); 
-                // And ensure processing text is on button
-                convertToTextBtnText.textContent = "Processing...";
-
-
-                for (let i = 0; i < selectedImageFiles.length; i++) {
-                    const file = selectedImageFiles[i];
-                    currentProcessingFileName = file.name; 
-                    updateImageCardStatus(file.name, 'processing', 'Initializing...'); 
-                    statusDisplay.textContent = `Processing ${file.name} (${i + 1} of ${selectedImageFiles.length})...`;
-                    
-                    try {
-                        const { data: { text } } = await worker.recognize(file);
-                        accumulatedText += `--- ${file.name} ---\n`;
-                        accumulatedText += `${text.trim()}\n\n`;
-                        updateImageCardStatus(file.name, 'done', 'Done');
-                    } catch (recognizeError) {
-                        console.error(`Error recognizing ${file.name}:`, recognizeError);
-                        accumulatedText += `--- ERROR processing ${file.name} ---\n${recognizeError.message || 'Unknown OCR error'}\n\n`;
-                        updateImageCardStatus(file.name, 'error', 'OCR Error');
-                        anyErrorOccurred = true;
-                    }
-                    totalProcessed++;
-                    overallProgressBar.style.width = `${(totalProcessed / selectedImageFiles.length) * 100}%`;
-                }
-                extractedText.value = accumulatedText; 
-
-                if (anyErrorOccurred) {
-                    statusDisplay.textContent = 'Completed with errors.';
-                    showMessage('Some images failed during OCR. See details below.', 'error');
-                } else {
-                    statusDisplay.textContent = 'All images processed successfully!';
-                    showMessage('All images processed successfully!');
-                }
-            } catch (error) { 
-                console.error('Overall OCR Process Error:', error);
-                statusDisplay.textContent = 'A critical error occurred. Please refresh.';
-                showMessage('A critical error occurred. Please refresh the page.', 'error');
-                selectedImageFiles.forEach(file => {
-                    const card = document.getElementById(`card-${file.name.replace(/[^a-zA-Z0-9]/g, '')}`);
-                    if (card && !card.querySelector('.status-dot.bg-green-500')) { 
-                         updateImageCardStatus(file.name, 'error', 'Engine Error');
-                    }
-                });
-            } finally {
-                currentProcessingFileName = ''; 
-                isProcessing = false;
-                loader.classList.add('hidden'); 
-                updateButtonAndStatusStates();
-            }
-        });
-
-        copyTextBtn.addEventListener('click', () => {
-            if (extractedText.value.trim()) {
-                navigator.clipboard.writeText(extractedText.value)
-                    .then(() => {
-                        showMessage('All text copied to clipboard!');
-                        copyTextBtnText.textContent = 'Copied!';
-                        copyTextBtn.classList.add('!bg-green-500', '!text-white', '!border-green-500'); 
-                        setTimeout(() => {
-                            copyTextBtnText.textContent = originalCopyBtnText;
-                            copyTextBtn.classList.remove('!bg-green-500', '!text-white', '!border-green-500');
-                            updateButtonAndStatusStates(); // Re-check disabled state
-                        }, 2000);
-                    })
-                    .catch(err => {
-                        console.error('Failed to copy text: ', err);
-                        showMessage('Failed to copy text. Browser might not support this.', 'error');
-                    });
-            } else {
-                showMessage('Nothing to copy.', 'error');
-            }
-        });
-        
-        function handleReset(showSuccessMessage = true) {
-            imageUpload.value = ''; 
-            selectedImageFiles = [];
-            imagePreviewGrid.innerHTML = '';
-            extractedText.value = '';
-            
-            overallProgressBarContainer.classList.add('hidden');
-            overallProgressBar.style.width = '0%';
-            loader.classList.add('hidden'); 
-            isProcessing = false; 
-
-            updateButtonAndStatusStates(); // Centralized update
-
-            if (showSuccessMessage) {
-                showMessage('Form has been reset.', 'info');
-            }
-        }
-        resetBtn.addEventListener('click', () => handleReset(true));
-
-        // Initial setup
-        updateButtonAndStatusStates();
-    </script>
+    resetBtn.addEventListener('click', () => {
+      input.value = '';
+      images = [];
+      preview.innerHTML = '';
+      result.value = '';
+      progressBar.style.width = '0%';
+      progressBarContainer.classList.add('hidden');
+    });
+  </script>
 </body>
 </html>
